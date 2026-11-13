@@ -1,186 +1,112 @@
+
 package gui;
 
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
+public class PrincipalWindows extends JFrame {
+    int xMouse;
+    int yMouse;
+    private JLabel LabelExit;
+    private JPanel container;
+    private MainMenu mainMenu;
+    private JPanel panelExit;
+    private JPanel topBar;
 
-
-public class PrincipalWindows extends javax.swing.JFrame {
-    
- 
-    int xMouse,yMouse;    
-    
-    
     public PrincipalWindows() {
-        initComponents();
-        
-        
-        
+        this.initComponents();
     }
 
-    
-  
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
-
-        container = new javax.swing.JPanel();
-        mainMenu = new gui.MainMenu();
-        topBar = new javax.swing.JPanel();
-        panelExit = new javax.swing.JPanel();
-        LabelExit = new javax.swing.JLabel();
-
-        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setLocationByPlatform(true);
-        setName("principalWindows"); // NOI18N
-        setUndecorated(true);
-        setResizable(false);
-
-        container.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                containerMouseEntered(evt);
+        this.container = new JPanel();
+        this.mainMenu = new MainMenu();
+        this.topBar = new JPanel();
+        this.panelExit = new JPanel();
+        this.LabelExit = new JLabel();
+        this.setDefaultCloseOperation(3);
+        this.setLocationByPlatform(true);
+        this.setName("principalWindows");
+        this.setUndecorated(true);
+        this.setResizable(false);
+        this.container.setPreferredSize(new Dimension(800, 500));
+        this.container.addMouseListener(new MouseAdapter() {
+        });
+        this.container.setLayout(new CardLayout());
+        this.container.add(this.mainMenu, "MENU");
+        this.getContentPane().add(this.container, "Center");
+        this.topBar.setBackground(new Color(0, 0, 0));
+        this.topBar.setPreferredSize(new Dimension(800, 36));
+        this.topBar.setLayout(new FlowLayout(2, 10, 4));
+        this.topBar.addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent evt) {
+                PrincipalWindows.this.topBarMouseDragged(evt);
             }
         });
-        container.setLayout(new java.awt.CardLayout());
-
-        javax.swing.GroupLayout mainMenuLayout = new javax.swing.GroupLayout(mainMenu);
-        mainMenu.setLayout(mainMenuLayout);
-        mainMenuLayout.setHorizontalGroup(
-            mainMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 800, Short.MAX_VALUE)
-        );
-        mainMenuLayout.setVerticalGroup(
-            mainMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 453, Short.MAX_VALUE)
-        );
-
-         container.add(mainMenu, "MENU");
-
-        getContentPane().add(container, java.awt.BorderLayout.CENTER);
-
-        topBar.setBackground(new java.awt.Color(0, 0, 0));
-        topBar.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
-            public void mouseDragged(java.awt.event.MouseEvent evt) {
-                topBarMouseDragged(evt);
+        this.topBar.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent evt) {
+                PrincipalWindows.this.topBarMousePressed(evt);
             }
         });
-        topBar.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                topBarMouseClicked(evt);
+        this.panelExit.setBackground(new Color(255, 255, 255));
+        this.panelExit.setPreferredSize(new Dimension(28, 28));
+        this.panelExit.addMouseListener(new MouseAdapter() {
+        });
+        this.panelExit.setLayout(new BorderLayout());
+        this.LabelExit.setFont(new Font("sansserif", 0, 18));
+        this.LabelExit.setText("X");
+        this.LabelExit.setHorizontalAlignment(0);
+        this.LabelExit.setVerticalAlignment(0);
+        this.LabelExit.setCursor(new Cursor(12));
+        this.LabelExit.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent evt) {
+                PrincipalWindows.this.LabelExitMouseClicked(evt);
             }
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                topBarMousePressed(evt);
+
+            public void mouseEntered(MouseEvent evt) {
+                PrincipalWindows.this.LabelExitMouseEntered(evt);
+            }
+
+            public void mouseExited(MouseEvent evt) {
+                PrincipalWindows.this.LabelExitMouseExited(evt);
             }
         });
+        this.panelExit.add(this.LabelExit, "Center");
+        this.topBar.add(this.panelExit);
+        this.getContentPane().add(this.topBar, "First");
+        this.pack();
+    }
 
-        panelExit.setBackground(new java.awt.Color(255, 255, 255));
-        panelExit.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                panelExitMouseEntered(evt);
-            }
-        });
-        panelExit.setLayout(new java.awt.BorderLayout());
+    private void topBarMousePressed(MouseEvent evt) {
+        this.xMouse = evt.getX();
+        this.yMouse = evt.getY();
+    }
 
-        LabelExit.setFont(new java.awt.Font("sansserif", 0, 24)); // NOI18N
-        LabelExit.setText(" X");
-        LabelExit.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        LabelExit.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                LabelExitMouseClicked(evt);
-            }
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                LabelExitMouseEntered(evt);
-            }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                LabelExitMouseExited(evt);
-            }
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                LabelExitMousePressed(evt);
-            }
-        });
-        panelExit.add(LabelExit, java.awt.BorderLayout.CENTER);
-
-        javax.swing.GroupLayout topBarLayout = new javax.swing.GroupLayout(topBar);
-        topBar.setLayout(topBarLayout);
-        topBarLayout.setHorizontalGroup(
-            topBarLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, topBarLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(panelExit, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
-        );
-        topBarLayout.setVerticalGroup(
-            topBarLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(topBarLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(panelExit, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addContainerGap())
-        );
-
-        getContentPane().add(topBar, java.awt.BorderLayout.PAGE_START);
-
-        pack();
-    }// </editor-fold>                        
-
-    private void LabelExitMousePressed(java.awt.event.MouseEvent evt) {                                       
-
-
-        // TODO add your handling code here:
-    }                                      
-
-    private void topBarMousePressed(java.awt.event.MouseEvent evt) {                                    
-        // TODO add your handling code here:
-        xMouse = evt.getX();
-        yMouse = evt.getY();
-
-    }                                   
-
-    private void topBarMouseDragged(java.awt.event.MouseEvent evt) {                                    
-        // TODO add your handling code here:
+    private void topBarMouseDragged(MouseEvent evt) {
         int x = evt.getXOnScreen();
         int y = evt.getYOnScreen();
-        this.setLocation(x-xMouse,y-yMouse);
-
-    }                                   
-
-    private void topBarMouseClicked(java.awt.event.MouseEvent evt) {                                    
-        // TODO add your handling code here:
-    }                                   
-
-    private void LabelExitMouseClicked(java.awt.event.MouseEvent evt) {                                       
-        // TODO add your handling code here:
-        System.exit(0);
-    }                                      
-
-    private void containerMouseEntered(java.awt.event.MouseEvent evt) {                                       
-        // TODO add your handling code here:
-    }                                      
-
-    private void LabelExitMouseEntered(java.awt.event.MouseEvent evt) {                                       
-        // TODO add your handling code here:
-
-        panelExit.setBackground(Color.red);
-
-    }                                      
-
-    private void panelExitMouseEntered(java.awt.event.MouseEvent evt) {                                       
-        // TODO add your handling code here:
-
-    }                                      
-
-    private void LabelExitMouseExited(java.awt.event.MouseEvent evt) {                                      
-        // TODO add your handling code here:
-        panelExit.setBackground(Color.white);
-    }                                     
-
-    public static void main(String args[]) {
-    
-        java.awt.EventQueue.invokeLater(() -> new PrincipalWindows().setVisible(true));
+        this.setLocation(x - this.xMouse, y - this.yMouse);
     }
 
-    // Variables declaration - do not modify                     
-    private javax.swing.JLabel LabelExit;
-    private javax.swing.JPanel container;
-    private gui.MainMenu mainMenu;
-    private javax.swing.JPanel panelExit;
-    private javax.swing.JPanel topBar;
-    // End of variables declaration                   
+    private void LabelExitMouseClicked(MouseEvent evt) {
+        System.exit(0);
+    }
+
+    private void LabelExitMouseEntered(MouseEvent evt) {
+        this.panelExit.setBackground(new Color(220, 53, 69));
+    }
+
+    private void LabelExitMouseExited(MouseEvent evt) {
+        this.panelExit.setBackground(Color.white);
+    }
 }

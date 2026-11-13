@@ -10,6 +10,9 @@ public abstract class AbstractCard {
         this.cardType = cardType;
     }
 
+   
+
+
     public String getName() {
         return name;
     }
@@ -18,3 +21,4 @@ public abstract class AbstractCard {
         return cardType;
     }
 }
+

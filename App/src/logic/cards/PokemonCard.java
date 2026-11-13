@@ -50,8 +50,23 @@ this(name, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
 setType(type);
     }
 
-// getters
 
+public PokemonCard() { 
+    super("","Pokemon");
+    this.healthPoints = 0;
+    this.maxHealthPoints = 0;
+    this.retreatCost = 0;
+    this.attacks = new ArrayList<>();
+    this.isEx = false;
+    this.attachedEnergy = 0;
+    this.phase = 1;
+    this.evolvesFrom = null;
+    this.type = Type.COLORLESS;
+}
+
+
+
+// getters
 public short getHealthPoints() {
 return healthPoints;
     }

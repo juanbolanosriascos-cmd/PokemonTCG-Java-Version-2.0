@@ -176,3 +176,24 @@ La columna **Etapa** es la que muestra el juego: **Fase 1** es un Pokémon bási
 - Mira el costo de cada ataque antes de decidir en qué Pokémon adjuntas la energía.
 - Procura tener siempre al menos **un Pokémon en la banca**: si tu activo es derrotado y no te queda ninguno, pierdes el duelo.
 - Cuando el juego diga "Entrega la consola", el otro jugador no debe mirar la pantalla: allí aparece la mano del jugador en turno.
+## Entrega actual: integracion de logica e interfaz
+
+La interfaz grafica esta conectada con el modelo de la partida. `GameWindows` trabaja con las clases `Game`, `Player`, `Deck`, `Hand` y `PokemonCard`, por lo que las acciones realizadas con los botones actualizan la logica real del juego.
+
+En esta entrega se incorporaron los siguientes elementos:
+
+- Las cartas de Fase 1 se crean como `BasicPokemonCard`.
+- Las cartas de Fase 2 se crean como `StageOnePokemonCard`.
+- Las cartas de Fase 3 se crean como `StageTwoPokemonCard`.
+- Cada `PokemonCard` guarda su ruta de imagen y su ruta de audio.
+- La interfaz usa esas rutas para mostrar el sprite y reproducir el grito del Pokemon al hacer clic sobre el campo.
+- La evolucion valida la fase, el Pokemon de origen, la carta disponible en la mano y las restricciones del turno.
+- Al evolucionar se conservan la energia adjunta y el dano recibido.
+
+Los ataques, costos de energia, dano, PS, costos de retirada y cadenas de evolucion del catalogo coinciden con la tabla de Pokemon disponible en este documento.
+
+### Recurso pendiente de esta entrega
+
+El unico recurso multimedia que falta es el audio de Charizard. No existe actualmente el archivo `App/src/media/audio/screams/006charizard.wav`; por eso Charizard se muestra correctamente, pero al hacer clic sobre el no reproduce un grito.
+
+Para completar esta parte, se debe agregar un archivo de audio con ese nombre en `App/src/media/audio/screams/`. La interfaz ya esta preparada para reproducirlo automaticamente cuando el recurso exista. Mientras el archivo no este disponible, el programa evita asignar una ruta invalida y continua funcionando normalmente.

@@ -72,7 +72,7 @@ public class PokemonSlotPanel extends RoundedPanel {
             nameLabel.setText(data.name);
             hpLabel.setText("PS: " + data.currentHp + "/" + data.maxHp);
             if (data.energyCount > 0) {
-               // energyLabel.setText("Energía: " + data.energyDisplayName + " " + data.energyCount);
+                energyLabel.setText("Energía: " + data.energyDisplayName + " " + data.energyCount);
             } else {
                 energyLabel.setText("Energía:");
             }

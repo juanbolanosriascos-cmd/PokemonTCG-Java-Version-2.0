@@ -1,28 +1,19 @@
 package gui;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import javax.imageio.ImageIO;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -44,12 +35,11 @@ import logic.cards.Type;
 
 public class GameWindows extends JPanel {
 
-    // Rutas de recursos
+    // Rutas y colores
     private static final String BG_PATH = "/media/images/backgrounds/Bosque_Verde_HGSS.png";
     private static final String LOGO3_PATH = "/media/images/windowsAccessories/logo3.png";
     private static final String ENERGY_BASE_PATH = "/media/images/typesPokemons/typesEnergy/";
 
-    // Colores principales
     private static final Color RED_COLOR = new Color(255, 56, 49);
     private static final Color BLUE_COLOR = new Color(14, 76, 117);
     private static final Color CARD_COLOR = new Color(208, 214, 222, 235);
@@ -59,22 +49,15 @@ public class GameWindows extends JPanel {
     private static final String MODE_NONE = "NONE";
     private static final String MODE_ENERGY = "ENERGY";
     private static final String MODE_EVOLVE = "EVOLVE";
+    private static final String MODE_PLACE_BENCH = "PLACE_BENCH";
+    private static final String MODE_USE_POTION = "USE_POTION";
 
-    // Componentes de la interfaz
+    // Componentes visuales
     private Image backgroundImage;
-    private JPanel topRedBar;
-    private JPanel bottomRedBar;
-    private JLabel logoLabel;
-
-    // Marcadores y turno
-    private RoundedPanel playerTwoScorePanel;
-    private RoundedPanel playerOneScorePanel;
-    private RoundedPanel turnPanel;
     private JLabel playerTwoScoreLabel;
     private JLabel playerOneScoreLabel;
     private JLabel turnLabel;
 
-    // Espacios del campo (0 = activo, 1 = banca 1, 2 = banca 2)
     private PokemonSlotPanel playerTwoActiveSlot;
     private PokemonSlotPanel playerTwoBenchSlotOne;
     private PokemonSlotPanel playerTwoBenchSlotTwo;
@@ -82,19 +65,12 @@ public class GameWindows extends JPanel {
     private PokemonSlotPanel playerOneBenchSlotOne;
     private PokemonSlotPanel playerOneBenchSlotTwo;
 
-    // Mano desplazable
-    private RoundedPanel handContainerPanel;
     private JPanel handCardsPanel;
-    private JScrollPane handScrollPane;
-
-    // Botones de acción y energía de campo
     private JButton energyButton;
     private JButton evolveButton;
     private JButton attackButton;
     private JButton retreatButton;
     private JButton endTurnButton;
-    private RoundedPanel fieldEnergyPanel;
-    private JLabel fieldEnergyTextLabel;
     private JLabel fieldEnergyIconLabel;
 
     // Estado de la partida
@@ -111,11 +87,16 @@ public class GameWindows extends JPanel {
 
     private List<VisualCardData> playerOneHand = new ArrayList<>();
     private List<VisualCardData> playerTwoHand = new ArrayList<>();
+    private PokemonCard[] playerOneBenchOrder = new PokemonCard[2];
+    private PokemonCard[] playerTwoBenchOrder = new PokemonCard[2];
 
     private String currentMode = MODE_NONE;
+    private int selectedCardIndex = -1;
     private JLabel selectedCardLabel = null;
+    private PokemonCard selectedBenchPokemon = null;
+    private AbstractCard selectedPotionCard = null;
 
-    // Modelo del juego: aqui viven las reglas, la ventana solo lo consulta
+    // Modelo del juego
     private Game game;
     private Player playerOne;
     private Player playerTwo;
@@ -126,6 +107,8 @@ public class GameWindows extends JPanel {
         this.playerOneDeck = playerOneDeck;
         this.playerTwoName = playerTwoName;
         this.playerTwoDeck = playerTwoDeck;
+        this.playerOneStarts = playerOneStarts;
+
         if (playerOneStarts) {
             this.currentPlayer = 1;
             this.currentFieldEnergy = mapDeckToEnergy(playerOneDeck);
@@ -134,20 +117,20 @@ public class GameWindows extends JPanel {
             this.currentFieldEnergy = mapDeckToEnergy(playerTwoDeck);
         }
 
-        this.playerOneStarts = playerOneStarts;
         loadBackground();
         initComponents();
         BackgroundMusic.playBattle();
     }
 
-    // Empieza la partida. Se llama después de mostrar el tablero en la ventana,
-    // así las ventanitas de preparación quedan encima del juego y no se esconden
+    // =========================================================
+    // INICIALIZACIÓN DE PARTIDA Y SINCRONIZACIÓN CON MODELO
+    // =========================================================
+
     public void startMatch() {
         setupMatch(playerOneStarts);
         refreshBoardFromGame();
     }
 
-    // Crea la partida real con los nombres y mazos elegidos en la ventana de inicio
     private void setupMatch(boolean playerOneStarts) {
         playerOne = new Player(playerOneName, createDeckFromName(playerOneDeck), new Hand(),
                 new ArrayList<>(), null, (byte) 0, (byte) 0);
@@ -155,68 +138,74 @@ public class GameWindows extends JPanel {
                 new ArrayList<>(), null, (byte) 0, (byte) 0);
         game = new Game(playerOne, playerTwo);
 
-        // Reparte 5 cartas a cada uno; el mulligan lo hace el modelo (Deck)
         if (!game.prepareInitialHands()) {
-            JOptionPane.showMessageDialog(this, "No se pudieron repartir las manos iniciales.",
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            showWarning("No se pudieron repartir las manos iniciales.");
             return;
         }
 
-        // Cada jugador coloca su Pokémon activo y su banca (RF2)
-        chooseInitialField(playerOne);
-        chooseInitialField(playerTwo);
+        chooseInitialField(playerOne, playerOneBenchOrder);
+        chooseInitialField(playerTwo, playerTwoBenchOrder);
 
-        // El resultado de la moneda decide quién empieza
-        game.setCurrentPlayer(playerOneStarts ? playerOne : playerTwo);
+        if (playerOneStarts) {
+            game.setCurrentPlayer(playerOne);
+        } else {
+            game.setCurrentPlayer(playerTwo);
+        }
         game.startTurn();
     }
 
-    // Traduce el nombre del mazo del JComboBox al mazo del modelo
     private Deck createDeckFromName(String deckName) {
         if (deckName == null) {
             return null;
         }
-        switch (deckName) {
-            case "Fuego":
-                return DeckFactory.createFireDeck();
-            case "Agua":
-                return DeckFactory.createWaterDeck();
-            case "Eléctrico":
-                return DeckFactory.createElectricDeck();
-            case "Psíquico":
-                return DeckFactory.createPsychicDeck();
-            default:
-                return null;
+        if (deckName.equals("Fuego")) {
+            return DeckFactory.createFireDeck();
         }
+        if (deckName.equals("Agua")) {
+            return DeckFactory.createWaterDeck();
+        }
+        if (deckName.equals("Eléctrico")) {
+            return DeckFactory.createElectricDeck();
+        }
+        if (deckName.equals("Psíquico")) {
+            return DeckFactory.createPsychicDeck();
+        }
+        return null;
     }
 
-    // Pide al jugador elegir su Pokémon activo y hasta 2 Pokémon para la banca
-    private void chooseInitialField(Player player) {
+    private void chooseInitialField(Player player, PokemonCard[] benchOrder) {
         JOptionPane.showMessageDialog(this,
                 "Preparación de " + player.getName() + ".\nQue el otro jugador no mire la pantalla.",
                 "Preparación", JOptionPane.INFORMATION_MESSAGE);
 
-        // Activo obligatorio: se repite hasta que elija uno
         PokemonCard active = null;
         while (active == null) {
             active = askBasicPokemon(player, "Elige tu Pokémon activo:", false);
         }
         player.selectInitialActivePokemon(active);
 
-        // Banca opcional: hasta 2 Pokémon o hasta que el jugador termine
+        int slotIndex = 0;
         while (player.getBank().size() < 2 && !player.getHand().getBasicPokemonCards().isEmpty()) {
             PokemonCard benchPokemon = askBasicPokemon(player, "¿Quieres poner un Pokémon en la banca?", true);
             if (benchPokemon == null) {
                 break;
             }
             player.placeOnBench(benchPokemon);
+            benchOrder[slotIndex] = benchPokemon;
+            slotIndex++;
         }
     }
 
-    // Muestra los Pokémon básicos de la mano como botones y devuelve el elegido
     private PokemonCard askBasicPokemon(Player player, String message, boolean allowFinish) {
         ArrayList<PokemonCard> basics = player.getHand().getBasicPokemonCards();
-        int optionCount = allowFinish ? basics.size() + 1 : basics.size();
+        int optionCount = basics.size();
+        if (allowFinish) {
+            optionCount = basics.size() + 1;
+        }
+        if (optionCount == 0) {
+            return null;
+        }
+
         String[] options = new String[optionCount];
         for (int i = 0; i < basics.size(); i++) {
             PokemonCard pokemon = basics.get(i);
@@ -234,34 +223,53 @@ public class GameWindows extends JPanel {
         return basics.get(choice);
     }
 
-    // Lee el estado del modelo y lo pinta en el tablero
     private void refreshBoardFromGame() {
         if (game == null || game.getCurrentPlayer() == null) {
             return;
         }
-        loadPlayerField(1, playerOne, playerOneDeck);
-        loadPlayerField(2, playerTwo, playerTwoDeck);
+        loadPlayerField(1, playerOne, playerOneDeck, playerOneBenchOrder);
+        loadPlayerField(2, playerTwo, playerTwoDeck, playerTwoBenchOrder);
 
-        currentPlayer = (game.getCurrentPlayer() == playerOne) ? 1 : 2;
+        if (game.getCurrentPlayer() == playerOne) {
+            currentPlayer = 1;
+        } else {
+            currentPlayer = 2;
+        }
         currentFieldEnergy = mapDeckToEnergy(getCurrentPlayerDeck());
         fieldEnergyAvailable = game.getCurrentPlayer().getAvailableEnergy() > 0;
         clearSelection();
         updateTurnVisualState();
     }
 
-    // Pasa el activo, la banca, la mano y los puntos de un jugador a la ventana
-    private void loadPlayerField(int playerNumber, Player player, String deckName) {
+    private void loadPlayerField(int playerNumber, Player player, String deckName, PokemonCard[] benchOrder) {
         String energyType = mapDeckToEnergy(deckName);
-        ArrayList<PokemonCard> bank = player.getBank();
+        syncBenchSlots(player.getBank(), benchOrder);
 
         setPokemonSlot(playerNumber, 0, toVisualPokemon(player.getActivePokemon(), energyType));
-        setPokemonSlot(playerNumber, 1, bank.size() > 0 ? toVisualPokemon(bank.get(0), energyType) : null);
-        setPokemonSlot(playerNumber, 2, bank.size() > 1 ? toVisualPokemon(bank.get(1), energyType) : null);
+        setPokemonSlot(playerNumber, 1, toVisualPokemon(benchOrder[0], energyType));
+        setPokemonSlot(playerNumber, 2, toVisualPokemon(benchOrder[1], energyType));
         setPlayerHand(playerNumber, toVisualHand(player.getHand()));
         setPlayerPoints(playerNumber, player.getPrizePoints());
     }
 
-    // Convierte una carta Pokémon del modelo en los datos que dibuja la ventana
+    private void syncBenchSlots(ArrayList<PokemonCard> bank, PokemonCard[] benchOrder) {
+        for (int i = 0; i < benchOrder.length; i++) {
+            if (benchOrder[i] != null && !bank.contains(benchOrder[i])) {
+                benchOrder[i] = null;
+            }
+        }
+        for (int i = 0; i < bank.size(); i++) {
+            PokemonCard pokemon = bank.get(i);
+            if (benchOrder[0] != pokemon && benchOrder[1] != pokemon) {
+                if (benchOrder[0] == null) {
+                    benchOrder[0] = pokemon;
+                } else if (benchOrder[1] == null) {
+                    benchOrder[1] = pokemon;
+                }
+            }
+        }
+    }
+
     private VisualPokemonData toVisualPokemon(PokemonCard pokemon, String energyType) {
         if (pokemon == null) {
             return null;
@@ -277,63 +285,64 @@ public class GameWindows extends JPanel {
         }
 
         VisualPokemonData data = new VisualPokemonData(pokemon.getName(), pokemon.getImagePath(),
-                pokemon.getAudioPath(),
-                pokemon.getHealthPoints(), pokemon.getMaxHealthPoints(), pokemon.getRetreatCost(),
-                attackNames, attackDamages, energyCosts);
+                pokemon.getAudioPath(), pokemon.getHealthPoints(), pokemon.getMaxHealthPoints(),
+                pokemon.getRetreatCost(), attackNames, attackDamages, energyCosts);
         data.energyType = energyType;
+        data.energyDisplayName = getEnergyDisplayName(energyType);
         data.energyCount = pokemon.getAttachedEnergy();
         return data;
     }
 
-    // Convierte la mano del modelo en la lista de cartas que dibuja la ventana
     private List<VisualCardData> toVisualHand(Hand hand) {
         List<VisualCardData> visualHand = new ArrayList<>();
         for (AbstractCard card : hand.getCards()) {
             if (card instanceof PokemonCard) {
                 PokemonCard pokemon = (PokemonCard) card;
                 VisualPokemonData pokemonData = toVisualPokemon(pokemon, "");
-                visualHand.add(new VisualCardData(pokemon.getName(), "POKEMON", pokemonData.spritePath,
-                        pokemonData.audioPath,
-                        pokemonData.currentHp, pokemonData.maxHp, pokemonData.retreatCost,
-                        pokemon.getEvolvesFrom(), pokemonData.attacks, pokemonData.attackDamages,
-                        pokemonData.energyCosts));
+                visualHand.add(new VisualCardData(pokemon.getName(), "POKEMON", pokemon.getImagePath(),
+                        pokemon.getEvolvesFrom(), pokemonData));
             } else {
-                String category = (card instanceof TrainerCard) ? "ENTRENADOR" : "OBJETO";
-                visualHand.add(new VisualCardData(card.getName(), category, buildSpritePath(card), null,
-                        0, 0, 0, null, null, null, null));
+                String category = "OBJETO";
+                if (card instanceof TrainerCard) {
+                    category = "ENTRENADOR";
+                }
+                visualHand.add(new VisualCardData(card.getName(), category, buildSpritePath(card), null, null));
             }
         }
         return visualHand;
     }
 
-    // Arma la ruta de la imagen de cada carta (temporal hasta que las cartas traigan su propia ruta)
     private String buildSpritePath(AbstractCard card) {
         if (card instanceof PokemonCard) {
-            PokemonCard pokemon = (PokemonCard) card;
-            return pokemon.getImagePath();
+            return ((PokemonCard) card).getImagePath();
         }
-        switch (card.getName()) {
-            case "Pocion":
-                return "/media/images/objects/potion.png";
-            case "Poke Ball":
-                return "/media/images/objects/pokeball.png";
-            case "Turbo Velocidad":
-                return "/media/images/objects/x-speed.png";
-            case "Investigacion del Profesor":
-                return "/media/images/trainers/oak.png";
-            case "Misty":
-                return "/media/images/trainers/misty.png";
-            default:
-                return null;
+        String name = card.getName();
+        if (name.equals("Pocion") || name.equals("Poción")) {
+            return "/media/images/objects/potion.png";
         }
+        if (name.equals("Poke Ball")) {
+            return "/media/images/objects/pokeball.png";
+        }
+        if (name.equals("Turbo Velocidad")) {
+            return "/media/images/objects/x-speed.png";
+        }
+        if (name.equals("Investigacion del Profesor")) {
+            return "/media/images/trainers/oak.png";
+        }
+        if (name.equals("Misty")) {
+            return "/media/images/trainers/misty.png";
+        }
+        return null;
     }
+
+    // =========================================================
+    // CONSTRUCCIÓN DE INTERFAZ
+    // =========================================================
 
     private void loadBackground() {
         URL resourceUrl = getClass().getResource(BG_PATH);
         if (resourceUrl != null) {
             backgroundImage = new ImageIcon(resourceUrl).getImage();
-        } else {
-            System.err.println("Background image resource not found: " + BG_PATH);
         }
     }
 
@@ -350,30 +359,32 @@ public class GameWindows extends JPanel {
         setPreferredSize(new Dimension(800, 500));
 
         // Barras superior e inferior
-        topRedBar = new JPanel();
+        JPanel topRedBar = new JPanel();
         topRedBar.setBackground(RED_COLOR);
         topRedBar.setBounds(0, 0, 800, 26);
         add(topRedBar);
 
-        bottomRedBar = new JPanel();
+        JPanel bottomRedBar = new JPanel();
         bottomRedBar.setBackground(RED_COLOR);
         bottomRedBar.setLayout(null);
         bottomRedBar.setBounds(0, 444, 800, 56);
         add(bottomRedBar);
 
-        logoLabel = new JLabel();
-        ImageIcon logoIcon = loadIcon(LOGO3_PATH, 215, 50);
-        if (logoIcon != null) logoLabel.setIcon(logoIcon);
+        JLabel logoLabel = new JLabel();
+        ImageIcon logoIcon = MediaUtils.loadIcon(LOGO3_PATH, 215, 50);
+        if (logoIcon != null) {
+            logoLabel.setIcon(logoIcon);
+        }
         logoLabel.setBounds(10, 3, 215, 50);
         bottomRedBar.add(logoLabel);
 
         // Energía del campo
-        fieldEnergyPanel = new RoundedPanel(20, CARD_COLOR);
+        RoundedPanel fieldEnergyPanel = new RoundedPanel(20, CARD_COLOR);
         fieldEnergyPanel.setLayout(null);
         fieldEnergyPanel.setBounds(455, 8, 195, 40);
         bottomRedBar.add(fieldEnergyPanel);
 
-        fieldEnergyTextLabel = new JLabel("Energía del campo", SwingConstants.CENTER);
+        JLabel fieldEnergyTextLabel = new JLabel("Energía del campo", SwingConstants.CENTER);
         fieldEnergyTextLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
         fieldEnergyTextLabel.setBounds(8, 10, 120, 20);
         fieldEnergyPanel.add(fieldEnergyTextLabel);
@@ -383,13 +394,12 @@ public class GameWindows extends JPanel {
         fieldEnergyIconLabel.setBounds(130, 8, 56, 24);
         fieldEnergyPanel.add(fieldEnergyIconLabel);
 
-        // Botón para pasar el turno
         endTurnButton = createBlueButton("Pasar turno", 15);
         endTurnButton.setBounds(660, 6, 130, 44);
         bottomRedBar.add(endTurnButton);
 
         // Marcadores y turno
-        playerTwoScorePanel = new RoundedPanel(25, CARD_COLOR);
+        RoundedPanel playerTwoScorePanel = new RoundedPanel(25, CARD_COLOR);
         playerTwoScorePanel.setLayout(null);
         playerTwoScorePanel.setBounds(12, 32, 205, 34);
         add(playerTwoScorePanel);
@@ -399,7 +409,7 @@ public class GameWindows extends JPanel {
         playerTwoScoreLabel.setBounds(5, 4, 195, 26);
         playerTwoScorePanel.add(playerTwoScoreLabel);
 
-        turnPanel = new RoundedPanel(20, BLUE_COLOR);
+        RoundedPanel turnPanel = new RoundedPanel(20, BLUE_COLOR);
         turnPanel.setLayout(null);
         turnPanel.setBounds(305, 34, 190, 30);
         add(turnPanel);
@@ -410,7 +420,7 @@ public class GameWindows extends JPanel {
         turnLabel.setBounds(5, 3, 180, 24);
         turnPanel.add(turnLabel);
 
-        playerOneScorePanel = new RoundedPanel(25, CARD_COLOR);
+        RoundedPanel playerOneScorePanel = new RoundedPanel(25, CARD_COLOR);
         playerOneScorePanel.setLayout(null);
         playerOneScorePanel.setBounds(583, 32, 205, 34);
         add(playerOneScorePanel);
@@ -421,43 +431,25 @@ public class GameWindows extends JPanel {
         playerOneScorePanel.add(playerOneScoreLabel);
 
         // Espacios del jugador 2 (izquierda)
-        playerTwoBenchSlotOne = new PokemonSlotPanel(2, 1);
-        playerTwoBenchSlotOne.setBounds(15, 74, 158, 84);
-        add(playerTwoBenchSlotOne);
-
-        playerTwoBenchSlotTwo = new PokemonSlotPanel(2, 2);
-        playerTwoBenchSlotTwo.setBounds(15, 165, 158, 84);
-        add(playerTwoBenchSlotTwo);
-
+        playerTwoBenchSlotOne = createPokemonSlot(2, 1, 15, 74, 158, 84);
+        playerTwoBenchSlotTwo = createPokemonSlot(2, 2, 15, 165, 158, 84);
         addFieldLabel("Pokémon en banca", 32, 253, 124);
 
-        playerTwoActiveSlot = new PokemonSlotPanel(2, 0);
-        playerTwoActiveSlot.setBounds(188, 130, 168, 92);
-        add(playerTwoActiveSlot);
-
+        playerTwoActiveSlot = createPokemonSlot(2, 0, 188, 130, 168, 92);
         addFieldLabel("Pokémon activo", 217, 226, 110);
 
         // Espacios del jugador 1 (derecha)
-        playerOneActiveSlot = new PokemonSlotPanel(1, 0);
-        playerOneActiveSlot.setBounds(444, 130, 168, 92);
-        add(playerOneActiveSlot);
-
+        playerOneActiveSlot = createPokemonSlot(1, 0, 444, 130, 168, 92);
         addFieldLabel("Pokémon activo", 473, 226, 110);
 
-        playerOneBenchSlotOne = new PokemonSlotPanel(1, 1);
-        playerOneBenchSlotOne.setBounds(627, 74, 158, 84);
-        add(playerOneBenchSlotOne);
-
-        playerOneBenchSlotTwo = new PokemonSlotPanel(1, 2);
-        playerOneBenchSlotTwo.setBounds(627, 165, 158, 84);
-        add(playerOneBenchSlotTwo);
-
+        playerOneBenchSlotOne = createPokemonSlot(1, 1, 627, 74, 158, 84);
+        playerOneBenchSlotTwo = createPokemonSlot(1, 2, 627, 165, 158, 84);
         addFieldLabel("Pokémon en banca", 644, 253, 124);
 
-        // Mano con barra de desplazamiento
+        // Mano desplazable
         addFieldLabel("Mano", 15, 336, 75);
 
-        handContainerPanel = new RoundedPanel(25, CARD_COLOR);
+        RoundedPanel handContainerPanel = new RoundedPanel(25, CARD_COLOR);
         handContainerPanel.setLayout(null);
         handContainerPanel.setBounds(15, 360, 590, 76);
         add(handContainerPanel);
@@ -465,7 +457,7 @@ public class GameWindows extends JPanel {
         handCardsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         handCardsPanel.setOpaque(false);
 
-        handScrollPane = new JScrollPane(handCardsPanel);
+        JScrollPane handScrollPane = new JScrollPane(handCardsPanel);
         handScrollPane.setOpaque(false);
         handScrollPane.getViewport().setOpaque(false);
         handScrollPane.setBorder(null);
@@ -495,6 +487,19 @@ public class GameWindows extends JPanel {
         updateTurnVisualState();
     }
 
+    private PokemonSlotPanel createPokemonSlot(int owner, int slotType, int x, int y, int width, int height) {
+        final PokemonSlotPanel slot = new PokemonSlotPanel(owner, slotType, CARD_COLOR);
+        slot.setBounds(x, y, width, height);
+        slot.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                handleFieldSlotClick(slot);
+            }
+        });
+        add(slot);
+        return slot;
+    }
+
     private void addFieldLabel(String text, int x, int y, int width) {
         RoundedPanel pill = new RoundedPanel(16, CARD_COLOR);
         pill.setLayout(null);
@@ -517,13 +522,15 @@ public class GameWindows extends JPanel {
         return btn;
     }
 
+    // =========================================================
+    // EVENTOS DE BOTONES Y ACCIONES DE COMBATE
+    // =========================================================
 
     private void configureButtonActions() {
         energyButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (gameFinished) return;
-                // Si ya no queda energía, el modelo lo explica antes de elegir Pokémon
+                if (game == null || gameFinished) return;
                 Player current = game.getCurrentPlayer();
                 String error = current.getAttachEnergyError(current.getActivePokemon());
                 if (error != null && current.getAvailableEnergy() <= 0) {
@@ -537,10 +544,12 @@ public class GameWindows extends JPanel {
         evolveButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (gameFinished) return;
+                if (game == null || gameFinished) return;
                 toggleActionMode(MODE_EVOLVE, evolveButton);
                 if (currentMode.equals(MODE_EVOLVE)) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "Selecciona un Pokémon de tu equipo para evolucionarlo.", "Evolucionar", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(GameWindows.this,
+                            "Selecciona un Pokémon de tu equipo para evolucionarlo.",
+                            "Evolucionar", JOptionPane.INFORMATION_MESSAGE);
                 }
             }
         });
@@ -548,7 +557,7 @@ public class GameWindows extends JPanel {
         retreatButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (gameFinished) return;
+                if (game == null || gameFinished) return;
                 clearSelection();
                 retreatActivePokemon();
             }
@@ -557,7 +566,7 @@ public class GameWindows extends JPanel {
         attackButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (gameFinished) return;
+                if (game == null || gameFinished) return;
                 clearSelection();
                 attackWithActivePokemon();
             }
@@ -566,20 +575,17 @@ public class GameWindows extends JPanel {
         endTurnButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (gameFinished) return;
-
+                if (game == null || gameFinished) return;
                 if (game.getCurrentPlayer().getActivePokemon() == null) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "El juego no puede seguir si tu puesto activo está vacío.", "Puesto activo vacío", JOptionPane.WARNING_MESSAGE);
+                    showWarning("El juego no puede seguir si tu puesto activo está vacío.");
                     return;
                 }
 
                 clearSelection();
-                // El modelo cambia de jugador y empieza su turno (roba carta y recibe energía)
                 game.endTurn();
                 boolean turnStarted = game.startTurn();
                 refreshBoardFromGame();
 
-                // Si no pudo robar carta o alguien ya ganó, termina la partida
                 if (!turnStarted && game.isFinished() && game.getWinner() != null) {
                     finishGame(game.getWinner().getName());
                 }
@@ -587,25 +593,6 @@ public class GameWindows extends JPanel {
         });
     }
 
-    // Muestra el aviso de por qué una acción no se puede hacer
-    private void showWarning(String message) {
-        JOptionPane.showMessageDialog(this, message, "Aviso", JOptionPane.WARNING_MESSAGE);
-    }
-
-    // Busca en el modelo el Pokémon que corresponde a un espacio del tablero
-    private PokemonCard getPokemonInSlot(PokemonSlotPanel slot) {
-        Player owner = (slot.owner == 1) ? playerOne : playerTwo;
-        if (slot.slotType == 0) {
-            return owner.getActivePokemon();
-        }
-        int benchIndex = slot.slotType - 1;
-        if (benchIndex < owner.getBank().size()) {
-            return owner.getBank().get(benchIndex);
-        }
-        return null;
-    }
-
-    // Ataque: el jugador elige el ataque y el modelo calcula daño, debilidad y puntos
     private void attackWithActivePokemon() {
         Player current = game.getCurrentPlayer();
         Player opponent = game.getOpponentOf(current);
@@ -621,6 +608,7 @@ public class GameWindows extends JPanel {
             Attack attack = attacks.get(i);
             options[i] = attack.getName() + " (" + attack.getBaseDamage() + " de daño - Costo: " + attack.getEnergyCost() + ")";
         }
+
         int choice = JOptionPane.showOptionDialog(this, "Selecciona el ataque de " + attacker.getName() + ":",
                 "Atacar", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
         if (choice < 0) {
@@ -634,8 +622,9 @@ public class GameWindows extends JPanel {
             return;
         }
 
+        MediaUtils.playAudio(attacker.getAudioPath());
+
         PokemonCard defender = opponent.getActivePokemon();
-        // El modelo calcula el daño (base + debilidad) antes de atacar
         int damage = current.getAttackDamage(opponent, attack);
         int pointsBefore = current.getPrizePoints();
         current.attackOpponent(opponent, attack);
@@ -655,16 +644,17 @@ public class GameWindows extends JPanel {
             finishGame(game.getWinner().getName());
             return;
         }
-        // Si el rival se quedó sin activo, debe subir uno de su banca
         if (opponent.getActivePokemon() == null) {
             promoteFromBench(opponent);
             refreshBoardFromGame();
         }
     }
 
-    // El jugador elige qué Pokémon de su banca pasa a ser el activo (obligatorio)
     private void promoteFromBench(Player player) {
         ArrayList<PokemonCard> bench = player.getBank();
+        if (bench.isEmpty()) {
+            return;
+        }
         String[] options = new String[bench.size()];
         for (int i = 0; i < bench.size(); i++) {
             options[i] = bench.get(i).getName() + " (" + bench.get(i).getHealthPoints() + " PS)";
@@ -677,7 +667,6 @@ public class GameWindows extends JPanel {
         player.promotePokemon(bench.get(choice));
     }
 
-    // Retirada: el jugador elige el reemplazo y el modelo cobra el costo en energía
     private void retreatActivePokemon() {
         Player current = game.getCurrentPlayer();
         ArrayList<PokemonCard> bench = current.getBank();
@@ -708,117 +697,221 @@ public class GameWindows extends JPanel {
         refreshBoardFromGame();
     }
 
-    private void toggleActionMode(String newMode, JButton targetButton) {
-        if (currentMode.equals(newMode)) {
-            clearSelection();
-        } else {
-            clearSelection();
-            currentMode = newMode;
-            targetButton.setBorder(BorderFactory.createLineBorder(SELECTION_BORDER_COLOR, 3));
-        }
-    }
+    // =========================================================
+    // INTERACCIÓN CON TABLERO Y MANO
+    // =========================================================
 
-    private void clearSelection() {
-        currentMode = MODE_NONE;
-        if (selectedCardLabel != null) {
-            selectedCardLabel.setBorder(null);
-            selectedCardLabel = null;
-        }
-        energyButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        evolveButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        retreatButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-    }
-
-    // Clic sobre un Pokémon del tablero: según el modo, adjunta energía o evoluciona
     private void handleFieldSlotClick(PokemonSlotPanel slot) {
-        if (gameFinished) return;
+        if (game == null || gameFinished) {
+            return;
+        }
         Player current = game.getCurrentPlayer();
-        boolean isAlly = (slot.owner == currentPlayer);
+        boolean isAlly = (slot.getOwner() == currentPlayer);
         PokemonCard pokemon = getPokemonInSlot(slot);
 
+        if (currentMode.equals(MODE_PLACE_BENCH)) {
+            handlePlaceBenchClick(current, slot, isAlly, pokemon);
+            return;
+        }
+        if (currentMode.equals(MODE_USE_POTION)) {
+            handleUsePotionClick(current, isAlly, pokemon);
+            return;
+        }
         if (currentMode.equals(MODE_ENERGY)) {
-            if (!isAlly || pokemon == null) {
-                showWarning("Elige uno de tus Pokémon para adjuntarle la energía.");
-                return;
-            }
-            String error = current.getAttachEnergyError(pokemon);
-            if (error != null) {
-                showWarning(error);
-            } else {
-                current.attachEnergy(pokemon);
-            }
-            refreshBoardFromGame();
+            handleAttachEnergyClick(current, isAlly, pokemon);
             return;
         }
-
         if (currentMode.equals(MODE_EVOLVE)) {
-            if (!isAlly || pokemon == null) {
-                showWarning("Elige uno de tus Pokémon para evolucionarlo.");
-                return;
-            }
-            // Busca en la mano una carta que diga "evoluciona de" este Pokémon
-            PokemonCard evolution = null;
-            for (AbstractCard card : current.getHand().getCards()) {
-                if (card instanceof PokemonCard && pokemon.getName().equals(((PokemonCard) card).getEvolvesFrom())) {
-                    evolution = (PokemonCard) card;
-                    break;
-                }
-            }
-            if (evolution == null) {
-                showWarning("No tienes en la mano una evolución de " + pokemon.getName() + ".");
-                clearSelection();
-                return;
-            }
-            String error = current.getEvolveError(evolution, pokemon);
-            if (error != null) {
-                showWarning(error);
-            } else {
-                current.evolvePokemon(evolution, pokemon);
-                JOptionPane.showMessageDialog(this, "¡" + pokemon.getName() + " evolucionó a " + evolution.getName() + "!",
-                        "Evolución", JOptionPane.INFORMATION_MESSAGE);
-            }
-            refreshBoardFromGame();
+            handleEvolveClick(current, slot, isAlly, pokemon);
             return;
         }
 
-        // Reproducir el grito al hacer clic en un Pokémon
-        if (slot.data != null) {
-            playAudio(slot.data.audioPath);
+        if (slot.getData() != null) {
+            MediaUtils.playAudio(slot.getData().audioPath);
         }
     }
 
-    // Clic sobre una carta de la mano: Pokémon básico a la banca o carta de entrenador
+    private void handlePlaceBenchClick(Player current, PokemonSlotPanel slot, boolean isAlly, PokemonCard occupyingPokemon) {
+        if (!isAlly) {
+            showWarning("No puedes colocar Pokémon en el campo rival.");
+            return;
+        }
+        if (slot.getSlotType() == 0) {
+            showWarning("Selecciona uno de los dos espacios de la banca.");
+            return;
+        }
+        if (occupyingPokemon != null) {
+            showWarning("Ese espacio de la banca ya está ocupado.");
+            return;
+        }
+
+        String error = current.getPlaceOnBenchError(selectedBenchPokemon);
+        if (error != null) {
+            showWarning(error);
+            clearSelection();
+            return;
+        }
+
+        current.placeOnBench(selectedBenchPokemon);
+        PokemonCard[] benchOrder = getCurrentBenchOrder();
+        benchOrder[slot.getSlotType() - 1] = selectedBenchPokemon;
+        MediaUtils.playAudio(selectedBenchPokemon.getAudioPath());
+        refreshBoardFromGame();
+    }
+
+    private void handleUsePotionClick(Player current, boolean isAlly, PokemonCard pokemon) {
+        if (!isAlly) {
+            showWarning("No puedes curar a un Pokémon enemigo. Elige uno de tu equipo o toca la Poción para cancelar.");
+            return;
+        }
+        if (pokemon == null) {
+            showWarning("No hay ningún Pokémon en este espacio.");
+            return;
+        }
+        if (pokemon.getHealthPoints() >= pokemon.getMaxHealthPoints()) {
+            showWarning(pokemon.getName() + " ya tiene todos sus PS (" + pokemon.getHealthPoints() + "/"
+                    + pokemon.getMaxHealthPoints() + "). Elige otro Pokémon o toca la Poción para cancelar.");
+            return;
+        }
+
+        String error = current.getPlayCardError(selectedPotionCard);
+        if (error != null) {
+            showWarning(error);
+            clearSelection();
+            return;
+        }
+
+        if (!current.playPlayableCard(selectedPotionCard, game, pokemon)) {
+            showWarning(selectedPotionCard.getName() + " no tuvo efecto en este momento.");
+        }
+        refreshBoardFromGame();
+    }
+
+    private void handleAttachEnergyClick(Player current, boolean isAlly, PokemonCard pokemon) {
+        if (!isAlly || pokemon == null) {
+            showWarning("Elige uno de tus Pokémon para adjuntarle la energía.");
+            return;
+        }
+        String error = current.getAttachEnergyError(pokemon);
+        if (error != null) {
+            showWarning(error);
+        } else {
+            current.attachEnergy(pokemon);
+        }
+        refreshBoardFromGame();
+    }
+
+    private void handleEvolveClick(Player current, PokemonSlotPanel slot, boolean isAlly, PokemonCard pokemon) {
+        if (!isAlly || pokemon == null) {
+            showWarning("Elige uno de tus Pokémon para evolucionarlo.");
+            return;
+        }
+
+        PokemonCard evolution = null;
+        for (AbstractCard card : current.getHand().getCards()) {
+            if (card instanceof PokemonCard && pokemon.getName().equals(((PokemonCard) card).getEvolvesFrom())) {
+                evolution = (PokemonCard) card;
+                break;
+            }
+        }
+        if (evolution == null) {
+            showWarning("No tienes en la mano una evolución de " + pokemon.getName() + ".");
+            clearSelection();
+            return;
+        }
+
+        String error = current.getEvolveError(evolution, pokemon);
+        if (error != null) {
+            showWarning(error);
+        } else {
+            current.evolvePokemon(evolution, pokemon);
+            if (slot.getSlotType() > 0) {
+                PokemonCard[] benchOrder = getCurrentBenchOrder();
+                benchOrder[slot.getSlotType() - 1] = evolution;
+            }
+            MediaUtils.playAudio(evolution.getAudioPath());
+            JOptionPane.showMessageDialog(this, "¡" + pokemon.getName() + " evolucionó a " + evolution.getName() + "!",
+                    "Evolución", JOptionPane.INFORMATION_MESSAGE);
+        }
+        refreshBoardFromGame();
+    }
+
     private void handleHandCardClick(int index, JLabel cardLabel) {
-        if (gameFinished) return;
-        clearSelection();
+        if (game == null || gameFinished) {
+            return;
+        }
         Player current = game.getCurrentPlayer();
         AbstractCard card = current.getHand().getCard(index);
         if (card == null) {
             return;
         }
 
+        // Selección de Pokémon básico para banca
         if (card instanceof PokemonCard) {
             PokemonCard pokemon = (PokemonCard) card;
             if (!pokemon.isBasicPokemon()) {
+                clearSelection();
                 showWarning("Para usar " + pokemon.getName() + ", toca el botón Evolucionar y luego el Pokémon que quieres evolucionar.");
                 return;
             }
-            int confirmation = JOptionPane.showConfirmDialog(this, "¿Poner a " + pokemon.getName() + " en la banca?",
+            if (currentMode.equals(MODE_PLACE_BENCH) && selectedCardIndex == index) {
+                clearSelection();
+                return;
+            }
+
+            clearSelection();
+            int confirmation = JOptionPane.showConfirmDialog(this,
+                    "¿Deseas seleccionar a " + pokemon.getName() + " para ponerlo en la banca?",
                     "Banca", JOptionPane.YES_NO_OPTION);
             if (confirmation != JOptionPane.YES_OPTION) {
                 return;
             }
+
             String error = current.getPlaceOnBenchError(pokemon);
             if (error != null) {
                 showWarning(error);
                 return;
             }
-            current.placeOnBench(pokemon);
-            refreshBoardFromGame();
+
+            currentMode = MODE_PLACE_BENCH;
+            selectedCardIndex = index;
+            selectedBenchPokemon = pokemon;
+            selectedCardLabel = cardLabel;
+            cardLabel.setBorder(BorderFactory.createLineBorder(SELECTION_BORDER_COLOR, 3));
             return;
         }
 
-        // Cartas de entrenador y objetos
+        // Selección de Poción para curar a un aliado específico
+        if (card.getName().equals("Pocion") || card.getName().equals("Poción")) {
+            if (currentMode.equals(MODE_USE_POTION) && selectedCardIndex == index) {
+                clearSelection();
+                return;
+            }
+
+            clearSelection();
+            int confirmation = JOptionPane.showConfirmDialog(this,
+                    "¿Deseas usar " + card.getName() + "? Luego selecciona el Pokémon que quieres curar.",
+                    "Usar Poción", JOptionPane.YES_NO_OPTION);
+            if (confirmation != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            String error = current.getPlayCardError(card);
+            if (error != null) {
+                showWarning(error);
+                return;
+            }
+
+            currentMode = MODE_USE_POTION;
+            selectedCardIndex = index;
+            selectedPotionCard = card;
+            selectedCardLabel = cardLabel;
+            cardLabel.setBorder(BorderFactory.createLineBorder(SELECTION_BORDER_COLOR, 3));
+            return;
+        }
+
+        // Resto de cartas de entrenador u objetos
+        clearSelection();
         int confirmation = JOptionPane.showConfirmDialog(this, "¿Deseas usar " + card.getName() + "?",
                 "Usar carta", JOptionPane.YES_NO_OPTION);
         if (confirmation != JOptionPane.YES_OPTION) {
@@ -830,7 +923,6 @@ public class GameWindows extends JPanel {
             return;
         }
 
-        // Misty necesita que el jugador elija a cuál de sus Pokémon de Agua le da la energía
         PokemonCard target = null;
         if ("Misty".equals(card.getName())) {
             target = chooseWaterPokemon(current);
@@ -845,7 +937,6 @@ public class GameWindows extends JPanel {
         refreshBoardFromGame();
     }
 
-    // Muestra los Pokémon de Agua en juego para elegir el objetivo de Misty
     private PokemonCard chooseWaterPokemon(Player player) {
         ArrayList<PokemonCard> waterPokemon = new ArrayList<>();
         if (player.getActivePokemon() != null && player.getActivePokemon().getType() == Type.WATER) {
@@ -860,18 +951,49 @@ public class GameWindows extends JPanel {
             showWarning("No tienes Pokémon de Agua en juego para usar Misty.");
             return null;
         }
+
         String[] options = new String[waterPokemon.size()];
         for (int i = 0; i < waterPokemon.size(); i++) {
             options[i] = waterPokemon.get(i).getName();
         }
         int choice = JOptionPane.showOptionDialog(this, "¿A qué Pokémon de Agua le das la energía?", "Misty",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-        return choice < 0 ? null : waterPokemon.get(choice);
+        if (choice < 0) {
+            return null;
+        }
+        return waterPokemon.get(choice);
+    }
+
+    // =========================================================
+    // ESTADO VISUAL Y CONSULTAS AUXILIARES
+    // =========================================================
+
+    private void toggleActionMode(String newMode, JButton targetButton) {
+        if (currentMode.equals(newMode)) {
+            clearSelection();
+        } else {
+            clearSelection();
+            currentMode = newMode;
+            targetButton.setBorder(BorderFactory.createLineBorder(SELECTION_BORDER_COLOR, 3));
+        }
+    }
+
+    private void clearSelection() {
+        currentMode = MODE_NONE;
+        selectedCardIndex = -1;
+        selectedBenchPokemon = null;
+        selectedPotionCard = null;
+        if (selectedCardLabel != null) {
+            selectedCardLabel.setBorder(null);
+            selectedCardLabel = null;
+        }
+        energyButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        evolveButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        retreatButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
     }
 
     private void updateTurnVisualState() {
-        String currentPlayerName = getCurrentPlayerName();
-        turnLabel.setText("Turno: " + currentPlayerName);
+        turnLabel.setText("Turno: " + getCurrentPlayerName());
         updateFieldEnergyIcon();
         refreshHandVisual();
     }
@@ -883,7 +1005,7 @@ public class GameWindows extends JPanel {
             return;
         }
         fieldEnergyIconLabel.setText("");
-        ImageIcon icon = loadIcon(ENERGY_BASE_PATH + currentFieldEnergy + ".png", 52, 22);
+        ImageIcon icon = MediaUtils.loadIcon(ENERGY_BASE_PATH + currentFieldEnergy + ".png", 52, 22);
         if (icon != null) {
             fieldEnergyIconLabel.setIcon(icon);
         } else {
@@ -921,7 +1043,7 @@ public class GameWindows extends JPanel {
             spriteLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             spriteLabel.setToolTipText(card.name);
 
-            ImageIcon icon = cargarSprite(card.spritePath, 50, 50);
+            ImageIcon icon = MediaUtils.loadSprite(card.spritePath, 50, 50);
             if (icon != null) {
                 spriteLabel.setIcon(icon);
             } else {
@@ -934,12 +1056,34 @@ public class GameWindows extends JPanel {
                     handleHandCardClick(index, spriteLabel);
                 }
             });
-
             handCardsPanel.add(spriteLabel);
         }
 
         handCardsPanel.revalidate();
         handCardsPanel.repaint();
+    }
+
+    private PokemonCard getPokemonInSlot(PokemonSlotPanel slot) {
+        Player owner;
+        PokemonCard[] benchOrder;
+        if (slot.getOwner() == 1) {
+            owner = playerOne;
+            benchOrder = playerOneBenchOrder;
+        } else {
+            owner = playerTwo;
+            benchOrder = playerTwoBenchOrder;
+        }
+        if (slot.getSlotType() == 0) {
+            return owner.getActivePokemon();
+        }
+        return benchOrder[slot.getSlotType() - 1];
+    }
+
+    private PokemonCard[] getCurrentBenchOrder() {
+        if (currentPlayer == 1) {
+            return playerOneBenchOrder;
+        }
+        return playerTwoBenchOrder;
     }
 
     private List<VisualCardData> getCurrentHand() {
@@ -964,156 +1108,31 @@ public class GameWindows extends JPanel {
     }
 
     private String mapDeckToEnergy(String deck) {
-        if (deck == null) {
-            return "Normal";
-        }
+        if (deck == null) return "Normal";
         String deckName = deck.toLowerCase();
-        if (deckName.contains("fuego")) {
-            return "Fire";
-        }
-        if (deckName.contains("agua")) {
-            return "Water";
-        }
-        if (deckName.contains("el")) {
-            return "Electric";
-        }
-        if (deckName.contains("ps")) {
-            return "Psychic";
-        }
+        if (deckName.contains("fuego")) return "Fire";
+        if (deckName.contains("agua")) return "Water";
+        if (deckName.contains("el")) return "Electric";
+        if (deckName.contains("ps")) return "Psychic";
         return "Normal";
     }
 
     private String getEnergyDisplayName(String energyType) {
-        if (energyType == null) {
-            return "";
-        }
-        if (energyType.equalsIgnoreCase("Fire")) {
-            return "Fuego";
-        }
-        if (energyType.equalsIgnoreCase("Water")) {
-            return "Agua";
-        }
-        if (energyType.equalsIgnoreCase("Electric")) {
-            return "Eléctrica";
-        }
-        if (energyType.equalsIgnoreCase("Psychic")) {
-            return "Psíquica";
-        }
+        if (energyType == null) return "";
+        if (energyType.equalsIgnoreCase("Fire")) return "Fuego";
+        if (energyType.equalsIgnoreCase("Water")) return "Agua";
+        if (energyType.equalsIgnoreCase("Electric")) return "Eléctrica";
+        if (energyType.equalsIgnoreCase("Psychic")) return "Psíquica";
         return energyType;
     }
 
-    private void playAudio(String audioPath) {
-        if (audioPath == null || audioPath.isEmpty()) {
-            return;
-        }
-        URL audioResource = getClass().getResource(audioPath);
-        if (audioResource == null) {
-            System.err.println("Audio resource not found: " + audioPath);
-            return;
-        }
-        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioResource)) {
-            Clip clip = AudioSystem.getClip();
-            clip.open(audioStream);
-            clip.start();
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException exception) {
-            System.err.println("Unable to play audio " + audioPath + ": " + exception.getMessage());
-        }
+    private void showWarning(String message) {
+        JOptionPane.showMessageDialog(this, message, "Aviso", JOptionPane.WARNING_MESSAGE);
     }
 
-    private ImageIcon loadIcon(String path, int maxWidth, int maxHeight) {
-        URL resourceUrl = getClass().getResource(path);
-        if (resourceUrl == null) {
-            System.err.println("Icon resource not found: " + path);
-            return null;
-        }
-        ImageIcon originalIcon = new ImageIcon(resourceUrl);
-        int originalWidth = originalIcon.getIconWidth();
-        int originalHeight = originalIcon.getIconHeight();
-        if (originalWidth <= 0 || originalHeight <= 0) {
-            System.err.println("Invalid icon dimensions: " + path);
-            return null;
-        }
-        double scale = Math.min((double) maxWidth / originalWidth, (double) maxHeight / originalHeight);
-        int scaledWidth = (int) (originalWidth * scale);
-        int scaledHeight = (int) (originalHeight * scale);
-        Image scaledImage = originalIcon.getImage().getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaledImage);
-    }
-
-    private ImageIcon cargarSprite(String ruta, int maxAncho, int maxAlto) {
-        if (ruta == null || ruta.isEmpty()) {
-            System.err.println("Sprite path is empty.");
-            return null;
-        }
-        if (maxAncho <= 0 || maxAlto <= 0) {
-            System.err.println("Sprite dimensions must be positive for: " + ruta);
-            return null;
-        }
-
-        URL resourceUrl = getClass().getResource(ruta);
-        if (resourceUrl == null) {
-            System.err.println("Sprite resource not found: " + ruta);
-            return null;
-        }
-
-        BufferedImage originalImage;
-        try {
-            originalImage = ImageIO.read(resourceUrl);
-        } catch (IOException exception) {
-            System.err.println("Unable to read sprite " + ruta + ": " + exception.getMessage());
-            return null;
-        }
-        if (originalImage == null) {
-            System.err.println("Unsupported sprite format: " + ruta);
-            return null;
-        }
-
-        int minX = originalImage.getWidth();
-        int minY = originalImage.getHeight();
-        int maxX = -1;
-        int maxY = -1;
-        for (int y = 0; y < originalImage.getHeight(); y++) {
-            for (int x = 0; x < originalImage.getWidth(); x++) {
-                int alpha = (originalImage.getRGB(x, y) >>> 24) & 0xFF;
-                if (alpha > 0) {
-                    if (x < minX) {
-                        minX = x;
-                    }
-                    if (y < minY) {
-                        minY = y;
-                    }
-                    if (x > maxX) {
-                        maxX = x;
-                    }
-                    if (y > maxY) {
-                        maxY = y;
-                    }
-                }
-            }
-        }
-
-        if (maxX < minX || maxY < minY) {
-            System.err.println("Sprite contains no visible pixels: " + ruta);
-            return null;
-        }
-
-        BufferedImage croppedImage = originalImage.getSubimage(
-                minX, minY, maxX - minX + 1, maxY - minY + 1);
-        double scale = Math.min((double) maxAncho / croppedImage.getWidth(),
-                (double) maxAlto / croppedImage.getHeight());
-        int scaledWidth = Math.max(1, (int) Math.round(croppedImage.getWidth() * scale));
-        int scaledHeight = Math.max(1, (int) Math.round(croppedImage.getHeight() * scale));
-        BufferedImage scaledImage = new BufferedImage(scaledWidth, scaledHeight, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = scaledImage.createGraphics();
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                    RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            graphics.drawImage(croppedImage, 0, 0, scaledWidth, scaledHeight, null);
-        } finally {
-            graphics.dispose();
-        }
-        return new ImageIcon(scaledImage);
-    }
+    // =========================================================
+    // CONTRATO PÚBLICO Y DTOs
+    // =========================================================
 
     public void setPokemonSlot(int playerNumber, int position, VisualPokemonData data) {
         PokemonSlotPanel targetSlot = getSlot(playerNumber, position);
@@ -1155,96 +1174,6 @@ public class GameWindows extends JPanel {
         return null;
     }
 
-    private class PokemonSlotPanel extends RoundedPanel {
-        private int owner;
-        private int slotType;
-        private VisualPokemonData data;
-
-        private JLabel nameLabel;
-        private JLabel spriteLabel;
-        private JLabel hpLabel;
-        private JLabel energyLabel;
-
-        public PokemonSlotPanel(int owner, int slotType) {
-            super(28, CARD_COLOR);
-            this.owner = owner;
-            this.slotType = slotType;
-            setLayout(null);
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-            nameLabel = new JLabel("");
-            nameLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
-            nameLabel.setBounds(12, 6, 145, 16);
-            add(nameLabel);
-
-            spriteLabel = new JLabel("", SwingConstants.CENTER);
-            spriteLabel.setBounds(8, 24, 54, 54);
-            add(spriteLabel);
-
-            hpLabel = new JLabel("");
-            hpLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            hpLabel.setBounds(66, 32, 95, 16);
-            add(hpLabel);
-
-            energyLabel = new JLabel("");
-            energyLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            energyLabel.setBounds(66, 50, 98, 16);
-            add(energyLabel);
-
-            addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    handleFieldSlotClick(PokemonSlotPanel.this);
-                }
-            });
-        }
-
-        public void setPokemon(VisualPokemonData data) {
-            this.data = data;
-            refresh();
-        }
-
-        public void refresh() {
-            if (data == null) {
-                nameLabel.setText("");
-                spriteLabel.setIcon(null);
-                hpLabel.setText("");
-                energyLabel.setText("");
-            } else {
-                nameLabel.setText(data.name);
-                hpLabel.setText("PS: " + data.currentHp + "/" + data.maxHp);
-                if (data.energyCount > 0) {
-                    energyLabel.setText("Energía: " + getEnergyDisplayName(data.energyType) + " " + data.energyCount);
-                } else {
-                    energyLabel.setText("Energía:");
-                }
-                ImageIcon icon = cargarSprite(data.spritePath, 50, 50);
-                spriteLabel.setIcon(icon);
-            }
-            repaint();
-        }
-    }
-
-    private static class RoundedPanel extends JPanel {
-        private int radius;
-        private Color bgColor;
-
-        public RoundedPanel(int radius, Color bgColor) {
-            this.radius = radius;
-            this.bgColor = bgColor;
-            setOpaque(false);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(bgColor);
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
-        }
-    }
-
     public static class VisualPokemonData {
         public String name;
         public String spritePath;
@@ -1253,6 +1182,7 @@ public class GameWindows extends JPanel {
         public int maxHp;
         public int retreatCost;
         public String energyType = "";
+        public String energyDisplayName = "";
         public int energyCount = 0;
         public String[] attacks;
         public int[] attackDamages;
@@ -1276,30 +1206,15 @@ public class GameWindows extends JPanel {
         public String name;
         public String category;
         public String spritePath;
-        public String audioPath;
-        public int currentHp;
-        public int maxHp;
-        public int retreatCost;
         public String evolvesFrom;
-        public String[] attacks;
-        public int[] attackDamages;
-        public int[] energyCosts;
+        public VisualPokemonData pokemonData;
 
-        public VisualCardData(String name, String category, String spritePath, String audioPath,
-                int currentHp, int maxHp, int retreatCost, String evolvesFrom,
-                String[] attacks, int[] attackDamages, int[] energyCosts) {
+        public VisualCardData(String name, String category, String spritePath, String evolvesFrom, VisualPokemonData pokemonData) {
             this.name = name;
             this.category = category;
             this.spritePath = spritePath;
-            this.audioPath = audioPath;
-            this.currentHp = currentHp;
-            this.maxHp = maxHp;
-            this.retreatCost = retreatCost;
             this.evolvesFrom = evolvesFrom;
-            this.attacks = attacks;
-            this.attackDamages = attackDamages;
-            this.energyCosts = energyCosts;
+            this.pokemonData = pokemonData;
         }
     }
-
 }

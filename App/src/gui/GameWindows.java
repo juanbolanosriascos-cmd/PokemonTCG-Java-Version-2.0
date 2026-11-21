@@ -37,7 +37,6 @@ import logic.cards.Type;
 
 public class GameWindows extends JPanel {
 
-    // Rutas y colores
     private static final String BG_PATH = "/media/images/backgrounds/Bosque_Verde_HGSS.png";
     private static final String LOGO3_PATH = "/media/images/windowsAccessories/logo3.png";
     private static final String ENERGY_BASE_PATH = "/media/images/typesPokemons/typesEnergy/";
@@ -54,7 +53,6 @@ public class GameWindows extends JPanel {
     private static final String MODE_PLACE_BENCH = "PLACE_BENCH";
     private static final String MODE_USE_POTION = "USE_POTION";
 
-    // Componentes visuales
     private Image backgroundImage;
     private JLabel playerTwoScoreLabel;
     private JLabel playerOneScoreLabel;
@@ -101,7 +99,6 @@ public class GameWindows extends JPanel {
     private PokemonCard selectedBenchPokemon = null;
     private AbstractCard selectedPotionCard = null;
 
-    // Modelo del juego
     private Game game;
     private Player playerOne;
     private Player playerTwo;
@@ -126,10 +123,6 @@ public class GameWindows extends JPanel {
         initComponents();
         BackgroundMusic.playBattle();
     }
-
-    // =========================================================
-    // INICIALIZACIÓN DE PARTIDA Y SINCRONIZACIÓN CON MODELO
-    // =========================================================
 
     public void startMatch() {
         setupMatch(playerOneStarts);
@@ -359,10 +352,6 @@ public class GameWindows extends JPanel {
         return null;
     }
 
-    // =========================================================
-    // CONSTRUCCIÓN DE INTERFAZ
-    // =========================================================
-
     private void loadBackground() {
         URL resourceUrl = getClass().getResource(BG_PATH);
         if (resourceUrl != null) {
@@ -470,7 +459,6 @@ public class GameWindows extends JPanel {
         playerOneBenchSlotTwo = createPokemonSlot(1, 2, 627, 165, 158, 84);
         addFieldLabel("Pokémon en banca", 644, 253, 124);
 
-        // Registro de eventos
         RoundedPanel eventLogPanel = new RoundedPanel(20, CARD_COLOR);
         eventLogPanel.setLayout(null);
         eventLogPanel.setBounds(188, 252, 424, 100);
@@ -491,7 +479,6 @@ public class GameWindows extends JPanel {
         eventLogScroll.setBounds(10, 6, 406, 88);
         eventLogPanel.add(eventLogScroll);
 
-        // Mano desplazable
         addFieldLabel("Mano", 15, 336, 75);
 
         RoundedPanel handContainerPanel = new RoundedPanel(25, CARD_COLOR);
@@ -566,10 +553,6 @@ public class GameWindows extends JPanel {
         btn.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
         return btn;
     }
-
-    // =========================================================
-    // EVENTOS DE BOTONES Y ACCIONES DE COMBATE
-    // =========================================================
 
     private void configureButtonActions() {
         energyButton.addActionListener(new ActionListener() {
@@ -752,10 +735,6 @@ public class GameWindows extends JPanel {
         refreshBoardFromGame();
     }
 
-    // =========================================================
-    // INTERACCIÓN CON TABLERO Y MANO
-    // =========================================================
-
     private void handleFieldSlotClick(PokemonSlotPanel slot) {
         if (game == null || gameFinished) {
             return;
@@ -906,7 +885,6 @@ public class GameWindows extends JPanel {
             return;
         }
 
-        // Selección de Pokémon básico para banca
         if (card instanceof PokemonCard) {
             PokemonCard pokemon = (PokemonCard) card;
             if (!pokemon.isBasicPokemon()) {
@@ -941,7 +919,6 @@ public class GameWindows extends JPanel {
             return;
         }
 
-        // Selección de Poción para curar a un aliado específico
         if (card.getName().equals("Pocion") || card.getName().equals("Poción")) {
             if (currentMode.equals(MODE_USE_POTION) && selectedCardIndex == index) {
                 clearSelection();
@@ -970,7 +947,6 @@ public class GameWindows extends JPanel {
             return;
         }
 
-        // Resto de cartas de entrenador u objetos
         clearSelection();
         int confirmation = JOptionPane.showConfirmDialog(this, "¿Deseas usar " + card.getName() + "?",
                 "Usar carta", JOptionPane.YES_NO_OPTION);
@@ -1025,10 +1001,6 @@ public class GameWindows extends JPanel {
         }
         return waterPokemon.get(choice);
     }
-
-    // =========================================================
-    // ESTADO VISUAL Y CONSULTAS AUXILIARES
-    // =========================================================
 
     private void toggleActionMode(String newMode, JButton targetButton) {
         if (currentMode.equals(newMode)) {
@@ -1253,10 +1225,6 @@ public class GameWindows extends JPanel {
     private void showWarning(String message) {
         JOptionPane.showMessageDialog(this, message, "Aviso", JOptionPane.WARNING_MESSAGE);
     }
-
-    // =========================================================
-    // CONTRATO PÚBLICO Y DTOs
-    // =========================================================
 
     public void setPokemonSlot(int playerNumber, int position, VisualPokemonData data) {
         PokemonSlotPanel targetSlot = getSlot(playerNumber, position);

@@ -185,7 +185,6 @@ public class CoinFlipPanel extends JPanel {
                     containerRef.add(gameWindows, "GAME_BOARD");
                     CardLayout cl = (CardLayout) containerRef.getLayout();
                     cl.show(containerRef, "GAME_BOARD");
-                    // Primero se muestra el tablero y después empieza la preparación
                     gameWindows.startMatch();
                 }
             }

@@ -1,10 +1,10 @@
 # Pokémon TCG Pocket — Versión Java
 
-Simulación con **interfaz gráfica** del juego de cartas **Pokémon TCG Pocket** (expansión *Genetic Apex*) para **dos jugadores** que comparten el mismo computador y se turnan el mouse. Cada jugador arma su campo, juega cartas, evoluciona y ataca con sus Pokémon, y trata de ser el primero en conseguir **3 puntos de premio**.
+Simulación con **interfaz gráfica** del juego de cartas **Pokémon TCG Pocket** (expansión *Genetic Apex*) para **dos jugadores** que comparten el mismo computador y se turnan el mouse y la pantalla al momento de hacer sus jugadas. Cada jugador arma su campo, juega cartas, evoluciona y ataca con sus Pokémon, y trata de ser el primero en conseguir **3 puntos de premio**.
 
 Mini Proyecto 2 · Universidad del Valle · Java 21
 
-Este proyecto continúa el [Mini Proyecto 1](https://github.com/Herreron/PokemonTCG-Java-Version), que se jugaba por consola. En esta entrega el juego pasa a ventanas hechas con Java Swing y se agrega la **evolución** de Pokémon.
+Este proyecto continúa el [Mini Proyecto 1](https://github.com/Herreron/PokemonTCG-Java-Version), que se jugaba por consola. En esta entrega el juego pasa a ventanas hechas con Java Swing y se agrega la **evolución** de Pokémon (Aunque en nuestro mp1 ya estaba integrado ya que quisimos adelantarnos a ese ardúo trabajo).
 
 ## Integrantes
 
@@ -108,6 +108,8 @@ Si intentas algo que no se puede hacer en ese momento, el juego te explica por q
 
 Al pasar el turno, la mano se oculta y aparece el mensaje *"Turno de (nombre). Pásale el computador y presiona Continuar."*. Así un jugador no ve la mano del otro. Al pulsar **Continuar**, el nuevo jugador roba su carta y ve su mano.
 
+![Cambio de turno](capturas/cambio_turno.png)
+
 ### Evolución
 
 Una carta de evolución se coloca sobre un Pokémon en juego (activo o de la banca) cuyo nombre coincida con el de **"Evoluciona de"**. Por ejemplo, Charmeleon se coloca sobre Charmander.
@@ -133,12 +135,16 @@ Una carta de evolución se coloca sobre un Pokémon en juego (activo o de la ban
 - Cuando un Pokémon se queda **sin PS**, sale del campo junto con sus evoluciones y sus energías, y quien lo derrotó gana **1 punto de premio** (o **2 puntos** si era un Pokémon **ex**).
 - El dueño del Pokémon derrotado **elige en una ventana a otro Pokémon de su banca** como nuevo activo. Si no le queda ninguno, pierde el duelo.
 
+![Ataque que derrota a un Pokémon ex](capturas/ataque.png)
+
 ### Fin de la partida
 
 Cuando alguien gana, aparece un mensaje que anuncia al campeón y **cómo ganó** (por puntos de premio, porque el rival se quedó sin Pokémon o porque el rival no pudo robar carta). En ese mismo mensaje puedes elegir:
 
 - **Nueva partida:** vuelve a la pantalla del jugador 1 para empezar otro duelo.
 - **Salir:** cierra el juego.
+
+![Fin de la partida](capturas/victoria.png)
 
 ### Cartas de entrenador
 
@@ -200,3 +206,5 @@ La columna **Etapa** es la que muestra el juego: **Básico** es el único que pu
 - Procura tener siempre al menos **un Pokémon en la banca**: si tu activo es derrotado y no te queda ninguno, pierdes el duelo.
 - Guarda tus cartas de evolución para el turno siguiente a bajar el Pokémon básico: no se puede evolucionar el mismo turno en que entra en juego.
 - Cuando aparezca la pantalla de **cambio de turno**, el otro jugador no debe mirar: después de pulsar **Continuar** se muestra la mano del jugador en turno.
+
+POSDATA: El apartado en el menú que aparece como Tutorial es un añadido que luego será expandido :3.

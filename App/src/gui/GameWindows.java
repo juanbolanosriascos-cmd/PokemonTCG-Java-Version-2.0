@@ -1,5 +1,6 @@
 package gui;
 
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -21,6 +22,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import logic.battlesystem.Deck;
 import logic.battlesystem.DeckFactory;
@@ -72,6 +74,7 @@ public class GameWindows extends JPanel {
     private JButton retreatButton;
     private JButton endTurnButton;
     private JLabel fieldEnergyIconLabel;
+    private JTextArea eventLogArea;
 
     // Estado de la partida
     private String playerOneName;
@@ -80,6 +83,8 @@ public class GameWindows extends JPanel {
     private String playerTwoDeck;
     private int playerOnePoints = 0;
     private int playerTwoPoints = 0;
+    private int playerOneDeckCount = 0;
+    private int playerTwoDeckCount = 0;
     private boolean gameFinished;
     private int currentPlayer;
     private boolean fieldEnergyAvailable = true;
@@ -128,6 +133,9 @@ public class GameWindows extends JPanel {
 
     public void startMatch() {
         setupMatch(playerOneStarts);
+        addLog("Empieza la partida: " + playerOneName + " contra " + playerTwoName + ".");
+        addLog(game.getCurrentPlayer().getName() + " ganó la moneda y juega primero.");
+        showTurnTransition();
         refreshBoardFromGame();
     }
 
@@ -249,6 +257,11 @@ public class GameWindows extends JPanel {
         setPokemonSlot(playerNumber, 1, toVisualPokemon(benchOrder[0], energyType));
         setPokemonSlot(playerNumber, 2, toVisualPokemon(benchOrder[1], energyType));
         setPlayerHand(playerNumber, toVisualHand(player.getHand()));
+        if (playerNumber == 1) {
+            playerOneDeckCount = player.getDeck().size();
+        } else {
+            playerTwoDeckCount = player.getDeck().size();
+        }
         setPlayerPoints(playerNumber, player.getPrizePoints());
     }
 
@@ -290,7 +303,18 @@ public class GameWindows extends JPanel {
         data.energyType = energyType;
         data.energyDisplayName = getEnergyDisplayName(energyType);
         data.energyCount = pokemon.getAttachedEnergy();
+        data.stage = getStageName(pokemon);
         return data;
+    }
+
+    private String getStageName(PokemonCard pokemon) {
+        if (pokemon.getPhase() == 2) {
+            return "Fase 1";
+        }
+        if (pokemon.getPhase() == 3) {
+            return "Fase 2";
+        }
+        return "Básico";
     }
 
     private List<VisualCardData> toVisualHand(Hand hand) {
@@ -405,7 +429,7 @@ public class GameWindows extends JPanel {
         add(playerTwoScorePanel);
 
         playerTwoScoreLabel = new JLabel(playerTwoName + ": 0/3", SwingConstants.CENTER);
-        playerTwoScoreLabel.setFont(new Font("SansSerif", Font.BOLD, 17));
+        playerTwoScoreLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         playerTwoScoreLabel.setBounds(5, 4, 195, 26);
         playerTwoScorePanel.add(playerTwoScoreLabel);
 
@@ -426,7 +450,7 @@ public class GameWindows extends JPanel {
         add(playerOneScorePanel);
 
         playerOneScoreLabel = new JLabel(playerOneName + ": 0/3", SwingConstants.CENTER);
-        playerOneScoreLabel.setFont(new Font("SansSerif", Font.BOLD, 17));
+        playerOneScoreLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         playerOneScoreLabel.setBounds(5, 4, 195, 26);
         playerOneScorePanel.add(playerOneScoreLabel);
 
@@ -445,6 +469,27 @@ public class GameWindows extends JPanel {
         playerOneBenchSlotOne = createPokemonSlot(1, 1, 627, 74, 158, 84);
         playerOneBenchSlotTwo = createPokemonSlot(1, 2, 627, 165, 158, 84);
         addFieldLabel("Pokémon en banca", 644, 253, 124);
+
+        // Registro de eventos
+        RoundedPanel eventLogPanel = new RoundedPanel(20, CARD_COLOR);
+        eventLogPanel.setLayout(null);
+        eventLogPanel.setBounds(188, 252, 424, 100);
+        add(eventLogPanel);
+
+        eventLogArea = new JTextArea();
+        eventLogArea.setEditable(false);
+        eventLogArea.setLineWrap(true);
+        eventLogArea.setWrapStyleWord(true);
+        eventLogArea.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        eventLogArea.setOpaque(false);
+
+        JScrollPane eventLogScroll = new JScrollPane(eventLogArea);
+        eventLogScroll.setOpaque(false);
+        eventLogScroll.getViewport().setOpaque(false);
+        eventLogScroll.setBorder(null);
+        eventLogScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        eventLogScroll.setBounds(10, 6, 406, 88);
+        eventLogPanel.add(eventLogScroll);
 
         // Mano desplazable
         addFieldLabel("Mano", 15, 336, 75);
@@ -582,12 +627,18 @@ public class GameWindows extends JPanel {
                 }
 
                 clearSelection();
+                addLog(game.getCurrentPlayer().getName() + " pasó el turno.");
                 game.endTurn();
+                showTurnTransition();
                 boolean turnStarted = game.startTurn();
+                if (turnStarted) {
+                    addLog("Turno " + game.getTurnNumber() + ": " + game.getCurrentPlayer().getName()
+                            + " roba una carta y recibe su energía.");
+                }
                 refreshBoardFromGame();
 
                 if (!turnStarted && game.isFinished() && game.getWinner() != null) {
-                    finishGame(game.getWinner().getName());
+                    finishGame();
                 }
             }
         });
@@ -637,11 +688,12 @@ public class GameWindows extends JPanel {
             int pointsWon = current.getPrizePoints() - pointsBefore;
             result += "\n" + defender.getName() + " fue derrotado. " + current.getName() + " gana " + pointsWon + " punto(s) de premio.";
         }
+        addLog(result.replace("\n", " "));
         JOptionPane.showMessageDialog(this, result, "Ataque", JOptionPane.INFORMATION_MESSAGE);
 
         refreshBoardFromGame();
         if (game.checkWinner()) {
-            finishGame(game.getWinner().getName());
+            finishGame();
             return;
         }
         if (opponent.getActivePokemon() == null) {
@@ -665,6 +717,7 @@ public class GameWindows extends JPanel {
                     "Nuevo Pokémon activo", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
         }
         player.promotePokemon(bench.get(choice));
+        addLog(player.getName() + " sube a " + player.getActivePokemon().getName() + " como Pokémon activo.");
     }
 
     private void retreatActivePokemon() {
@@ -693,7 +746,9 @@ public class GameWindows extends JPanel {
             showWarning(error);
             return;
         }
+        String retreatedName = current.getActivePokemon().getName();
         current.retreatActive(replacement);
+        addLog(current.getName() + " retira a " + retreatedName + " y entra " + replacement.getName() + ".");
         refreshBoardFromGame();
     }
 
@@ -753,6 +808,7 @@ public class GameWindows extends JPanel {
         }
 
         current.placeOnBench(selectedBenchPokemon);
+        addLog(current.getName() + " pone a " + selectedBenchPokemon.getName() + " en la banca.");
         PokemonCard[] benchOrder = getCurrentBenchOrder();
         benchOrder[slot.getSlotType() - 1] = selectedBenchPokemon;
         MediaUtils.playAudio(selectedBenchPokemon.getAudioPath());
@@ -783,6 +839,8 @@ public class GameWindows extends JPanel {
 
         if (!current.playPlayableCard(selectedPotionCard, game, pokemon)) {
             showWarning(selectedPotionCard.getName() + " no tuvo efecto en este momento.");
+        } else {
+            addLog(current.getName() + " usa Poción en " + pokemon.getName() + " (+20 PS).");
         }
         refreshBoardFromGame();
     }
@@ -797,6 +855,7 @@ public class GameWindows extends JPanel {
             showWarning(error);
         } else {
             current.attachEnergy(pokemon);
+            addLog(current.getName() + " adjunta una energía a " + pokemon.getName() + ".");
         }
         refreshBoardFromGame();
     }
@@ -830,6 +889,7 @@ public class GameWindows extends JPanel {
                 benchOrder[slot.getSlotType() - 1] = evolution;
             }
             MediaUtils.playAudio(evolution.getAudioPath());
+            addLog(pokemon.getName() + " evolucionó a " + evolution.getName() + ".");
             JOptionPane.showMessageDialog(this, "¡" + pokemon.getName() + " evolucionó a " + evolution.getName() + "!",
                     "Evolución", JOptionPane.INFORMATION_MESSAGE);
         }
@@ -933,6 +993,8 @@ public class GameWindows extends JPanel {
 
         if (!current.playPlayableCard(card, game, target)) {
             showWarning(card.getName() + " no tuvo efecto en este momento.");
+        } else {
+            addLog(current.getName() + " juega " + card.getName() + ".");
         }
         refreshBoardFromGame();
     }
@@ -993,7 +1055,11 @@ public class GameWindows extends JPanel {
     }
 
     private void updateTurnVisualState() {
-        turnLabel.setText("Turno: " + getCurrentPlayerName());
+        if (game != null && game.getTurnNumber() > 0) {
+            turnLabel.setText("Turno " + game.getTurnNumber() + ": " + getCurrentPlayerName());
+        } else {
+            turnLabel.setText("Turno: " + getCurrentPlayerName());
+        }
         updateFieldEnergyIcon();
         refreshHandVisual();
     }
@@ -1014,11 +1080,27 @@ public class GameWindows extends JPanel {
     }
 
     private void updateScoreMarkers() {
-        playerOneScoreLabel.setText(playerOneName + ": " + playerOnePoints + "/3");
-        playerTwoScoreLabel.setText(playerTwoName + ": " + playerTwoPoints + "/3");
+        playerOneScoreLabel.setText(playerOneName + ": " + playerOnePoints + "/3 · Mazo " + playerOneDeckCount);
+        playerTwoScoreLabel.setText(playerTwoName + ": " + playerTwoPoints + "/3 · Mazo " + playerTwoDeckCount);
+        playerOneScoreLabel.setToolTipText(playerOneScoreLabel.getText());
+        playerTwoScoreLabel.setToolTipText(playerTwoScoreLabel.getText());
     }
 
-    private void finishGame(String winner) {
+    private void showTurnTransition() {
+        String nextPlayerName = game.getCurrentPlayer().getName();
+        handCardsPanel.removeAll();
+        handCardsPanel.revalidate();
+        handCardsPanel.repaint();
+        turnLabel.setText("Cambio de turno");
+
+        String[] options = {"Continuar"};
+        JOptionPane.showOptionDialog(this,
+                "Turno de " + nextPlayerName + ".\nPásale el computador y presiona Continuar.",
+                "Cambio de turno", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                null, options, options[0]);
+    }
+
+    private void finishGame() {
         gameFinished = true;
         clearSelection();
         energyButton.setEnabled(false);
@@ -1027,7 +1109,44 @@ public class GameWindows extends JPanel {
         attackButton.setEnabled(false);
         endTurnButton.setEnabled(false);
         BackgroundMusic.stop();
-        JOptionPane.showMessageDialog(this, "¡" + winner + " gana la partida!", "Partida terminada", JOptionPane.INFORMATION_MESSAGE);
+
+        Player winner = game.getWinner();
+        Player loser = game.getOpponentOf(winner);
+        addLog("Fin de la partida. " + getVictoryText(winner, loser));
+        String message = "¡" + winner.getName() + " es el nuevo Campeón Pokémon!\n"
+                + getVictoryText(winner, loser) + "\n\n¿Qué quieres hacer?";
+
+        String[] options = {"Nueva partida", "Salir"};
+        int choice = JOptionPane.showOptionDialog(this, message, "Partida terminada",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+        if (choice == 0) {
+            startNewMatch();
+        } else if (choice == 1) {
+            System.exit(0);
+        }
+    }
+
+    private String getVictoryText(Player winner, Player loser) {
+        switch (game.getVictoryReason()) {
+            case PRIZE_POINTS:
+                return winner.getName() + " consiguió 3 puntos de premio.";
+            case NO_POKEMON_IN_PLAY:
+                return loser.getName() + " se quedó sin Pokémon en juego.";
+            case EMPTY_DECK:
+                return loser.getName() + " no pudo robar carta porque su mazo está vacío.";
+            default:
+                return "";
+        }
+    }
+
+    private void startNewMatch() {
+        JPanel container = (JPanel) getParent();
+        container.remove(this);
+        container.add(new CreatePlayers(container, 1), "PLAYER1");
+        ((CardLayout) container.getLayout()).show(container, "PLAYER1");
+        container.revalidate();
+        container.repaint();
+        BackgroundMusic.playIntro();
     }
 
     private void refreshHandVisual() {
@@ -1126,6 +1245,11 @@ public class GameWindows extends JPanel {
         return energyType;
     }
 
+    private void addLog(String message) {
+        eventLogArea.append(message + "\n");
+        eventLogArea.setCaretPosition(eventLogArea.getDocument().getLength());
+    }
+
     private void showWarning(String message) {
         JOptionPane.showMessageDialog(this, message, "Aviso", JOptionPane.WARNING_MESSAGE);
     }
@@ -1184,6 +1308,7 @@ public class GameWindows extends JPanel {
         public String energyType = "";
         public String energyDisplayName = "";
         public int energyCount = 0;
+        public String stage = "";
         public String[] attacks;
         public int[] attackDamages;
         public int[] energyCosts;

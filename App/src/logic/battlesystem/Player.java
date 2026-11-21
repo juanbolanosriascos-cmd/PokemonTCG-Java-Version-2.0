@@ -148,7 +148,6 @@ public class Player {
         return true;
     }
 
-    // Devuelve por qué no se puede poner la carta en la banca, o null si sí se puede
     public String getPlaceOnBenchError(PokemonCard card) {
         if (card == null || hand == null || !hand.getCards().contains(card)) {
             return "Esa carta no está en tu mano.";
@@ -172,7 +171,6 @@ public class Player {
         return true;
     }
 
-    // Devuelve por qué no se puede adjuntar energía, o null si sí se puede
     public String getAttachEnergyError(PokemonCard pokemon) {
         if (availableEnergy <= 0) {
             return "Ya usaste la energía de la zona en este turno.";
@@ -200,7 +198,6 @@ public class Player {
         return retreatActive(bank.get(0));
     }
 
-    // Devuelve por qué no se puede retirar el activo, o null si sí se puede
     public String getRetreatError(PokemonCard replacement) {
         if (activePokemon == null) {
             return "No tienes un Pokémon activo.";
@@ -256,7 +253,6 @@ public class Player {
         return true;
     }
 
-    // Devuelve por qué no se puede usar el ataque, o null si sí se puede
     public String getAttackError(Player opponent, Attack attack) {
         if (activePokemon == null) {
             return "No tienes un Pokémon activo para atacar.";
@@ -279,7 +275,6 @@ public class Player {
         return null;
     }
 
-    // Calcula el daño que haría el ataque: daño base + 20 si el defensor es débil al tipo del ataque
     public int getAttackDamage(Player opponent, Attack attack) {
         if (opponent == null || opponent.activePokemon == null || attack == null) {
             return 0;
@@ -322,7 +317,6 @@ public class Player {
         return true;
     }
 
-    
     public boolean playPlayableCard(AbstractCard card, Game game, PokemonCard target) {
          if (!(card instanceof Effect)) {
             return false;
@@ -353,7 +347,6 @@ public class Player {
         return hasPlayedTrainer;
     }
 
-    // Devuelve por qué no se puede jugar la carta de entrenador, o null si sí se puede
     public String getPlayCardError(AbstractCard card) {
         if (!(card instanceof Effect) || hand == null || !hand.getCards().contains(card)) {
             return "Esa carta no se puede jugar.";
@@ -472,7 +465,6 @@ public class Player {
         hand.removeCard(evolution);
     }
 
-    // Devuelve por qué no se puede evolucionar ese Pokémon con esa carta, o null si sí se puede
     public String getEvolveError(PokemonCard evolution, PokemonCard target) {
         if (!isValidEvolved(evolution)) {
             return "Esa carta no es una evolución de tu mano.";
@@ -493,7 +485,6 @@ public class Player {
         return null;
     }
 
-    // Evoluciona un Pokémon concreto (el que el jugador eligió en el tablero)
     public boolean evolvePokemon(PokemonCard evolution, PokemonCard target) {
         if (getEvolveError(evolution, target) != null) {
             return false;

@@ -112,7 +112,7 @@ public class MediaUtils {
             Clip clip = AudioSystem.getClip();
             clip.open(audioStream);
             clip.start();
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException exception) {
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException exception) {
             System.err.println("Unable to play audio " + audioPath + ": " + exception.getMessage());
         }
     }

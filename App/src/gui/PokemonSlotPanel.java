@@ -26,7 +26,7 @@ public class PokemonSlotPanel extends RoundedPanel {
         setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         nameLabel = new JLabel("");
-        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 11));
         nameLabel.setBounds(12, 6, 145, 16);
         add(nameLabel);
 
@@ -69,12 +69,12 @@ public class PokemonSlotPanel extends RoundedPanel {
             hpLabel.setText("");
             energyLabel.setText("");
         } else {
-            nameLabel.setText(data.name);
+            nameLabel.setText(data.name + " · " + data.stage);
             hpLabel.setText("PS: " + data.currentHp + "/" + data.maxHp);
             if (data.energyCount > 0) {
-                energyLabel.setText("Energía: " + data.energyDisplayName + " " + data.energyCount);
+                energyLabel.setText(data.energyDisplayName + " x" + data.energyCount);
             } else {
-                energyLabel.setText("Energía:");
+                energyLabel.setText("Sin energía");
             }
             ImageIcon icon = MediaUtils.loadSprite(data.spritePath, 50, 50);
             spriteLabel.setIcon(icon);
